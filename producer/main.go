@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	locasStructs "ganesh.provengo.io/local_structs"
-	fakerV4 "github.com/go-faker/faker/v4"
+	localStructs "ganesh.provengo.io/local_structs"
+	localSetup "ganesh.provengo.io/tools/setup"
+	fkrV4 "github.com/go-faker/faker/v4"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"log"
@@ -15,18 +16,18 @@ import (
 )
 
 const (
-	remoteQueue = "ganesh_provengo_io_login"
-	totalTasks  = 2
+	remoteQueue = localSetup.QueueName
+	totalTasks  = localSetup.TotalTasks
 )
 
-func GenerateUsers(total int) []locasStructs.DataLogin {
-	var users []locasStructs.DataLogin
+func GenerateUsers(total int) []localStructs.DataLogin {
+	var users []localStructs.DataLogin
 	for i := 0; i < total; i++ {
 		_uudi := uuid.New()
-		users = append(users, locasStructs.DataLogin{
+		users = append(users, localStructs.DataLogin{
 			UUID:      _uudi.String(),
-			Username:  fakerV4.Username(),
-			Password:  fakerV4.Password(),
+			Username:  fkrV4.Username(),
+			Password:  fkrV4.Password(),
 			Timestamp: time.Now().UnixMilli(),
 			Sequence:  int64(i),
 		})
@@ -34,15 +35,15 @@ func GenerateUsers(total int) []locasStructs.DataLogin {
 	return users
 }
 
-func GoUsers(reqChan chan locasStructs.DataLogin) {
+func GoUsers(reqChan chan localStructs.DataLogin) {
 
-	for _, value := range GenerateUsers(100000) {
+	for _, value := range GenerateUsers(localSetup.UsersGenerate) {
 		reqChan <- value
 	}
 
 }
 
-func NatsWorker(idGg int, reqChannel chan locasStructs.DataLogin, wg *sync.WaitGroup) {
+func NatsWorker(idGg int, reqChannel chan localStructs.DataLogin, wg *sync.WaitGroup) {
 	log.Printf("Starting NATS worker: %d\n", idGg)
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
@@ -68,7 +69,7 @@ func NatsWorker(idGg int, reqChannel chan locasStructs.DataLogin, wg *sync.WaitG
 	}
 }
 
-func startWorkTasks(wg *sync.WaitGroup, reqChannel chan locasStructs.DataLogin) {
+func startWorkTasks(wg *sync.WaitGroup, reqChannel chan localStructs.DataLogin) {
 	log.Printf("Starting work tasks")
 	for i := 0; i < totalTasks; i++ {
 		wg.Add(1)
@@ -78,10 +79,18 @@ func startWorkTasks(wg *sync.WaitGroup, reqChannel chan locasStructs.DataLogin) 
 
 func runningServer() {
 	wg := sync.WaitGroup{}
-	loginQueue := make(chan locasStructs.DataLogin)
-
+	loginQueue := make(chan localStructs.DataLogin)
 	startWorkTasks(&wg, loginQueue)
-	GoUsers(loginQueue)
+	total := 100
+	for {
+		if total == 0 {
+			break
+		}
+		GoUsers(loginQueue)
+		time.Sleep(30 * time.Second)
+		total -= 1
+	}
+
 }
 
 func main() {
