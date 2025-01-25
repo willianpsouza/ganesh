@@ -30,10 +30,6 @@ type Channels struct {
 	postgresQueue chan localStructs.DataLogin
 }
 
-type PGDataInsertUserPasword struct {
-	data localStructs.DataLogin
-}
-
 func UserPassword(c *localStructs.DataLogin) string {
 	algo := os.Getenv("ALGORITHM")
 	str := fmt.Sprintf("%s:%s", c.Username, c.Password)
@@ -43,7 +39,7 @@ func UserPassword(c *localStructs.DataLogin) string {
 
 func PasswordWorkers(idGg int, reqChannel chan localStructs.DataLogin, wg *sync.WaitGroup) {
 	defer wg.Done()
-	fmt.Printf("Starting worker %d\n", idGg)
+	fmt.Printf("Starting Password Worker %d\n", idGg)
 	for req := range reqChannel {
 		password := UserPassword(&req)
 		totalTime := time.Now().UnixMilli() - req.Timestamp
@@ -53,7 +49,7 @@ func PasswordWorkers(idGg int, reqChannel chan localStructs.DataLogin, wg *sync.
 
 func NatsWorker(idGg int, reqChannel Channels, wg *sync.WaitGroup) {
 	log.Printf("Starting NATS worker: %d\n", idGg)
-	nc, err := nats.Connect(nats.DefaultURL)
+	nc, err := nats.Connect(localSetup.NatsAddress)
 	if err != nil {
 		log.Fatal("error connecting to NATS")
 	}
@@ -102,12 +98,17 @@ func NatsWorker(idGg int, reqChannel Channels, wg *sync.WaitGroup) {
 func RedisWorker(idGg int, reqChannel chan localStructs.DataLogin, wg *sync.WaitGroup, ctx context.Context) {
 
 	fmt.Printf("Starting Redis worker: %d\n", idGg)
-	defer wg.Done()
+
 	conn, _err := localRedis.RedisConnection(ctx)
 	if _err != nil {
 		log.Fatalf("Error connecting to Redis %v", _err)
 	}
-	//_randoTime := time.Duration(rand.Intn(123)) * time.Second
+
+	defer func() {
+		wg.Done()
+		conn.Close()
+	}()
+
 	_randoTime := localSetup.RedisDefaultTTL
 
 	for req := range reqChannel {
@@ -175,6 +176,7 @@ func startWorkTasks(wg *sync.WaitGroup, reqChannel Channels, ctx context.Context
 		wg.Add(1)
 		go RedisWorker(i, reqChannel.redisQueue, wg, ctx)
 
+		//Postgres Workers
 		wg.Add(1)
 		go PostgresWorker(i, reqChannel.postgresQueue, wg, ctx)
 

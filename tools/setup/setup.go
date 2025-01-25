@@ -3,6 +3,7 @@ package setup
 import "time"
 
 const (
+	NatsAddress            string        = "nats://localhost:4222"
 	QueueName              string        = "ganesh.provengo.io"
 	TotalTasks             int           = 2
 	QueueGroup             string        = "login_workers"

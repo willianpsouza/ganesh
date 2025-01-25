@@ -4,7 +4,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/redis/go-redis/v9"
+	"sync"
 	"time"
+)
+
+var (
+	rdInstance *redis.Client
+	rdOnce     sync.Once
 )
 
 type RedisService struct {
@@ -24,22 +30,26 @@ func init() {
 }
 
 func RedisConnection(ctx context.Context) (*RedisService, error) {
-	client := redis.NewClient(&redis.Options{
-		Addr:           "localhost:6379",
-		Password:       "",
-		DB:             0,
-		PoolSize:       16,
-		MinIdleConns:   8,
-		MaxActiveConns: 16,
+
+	rdOnce.Do(func() {
+		client := redis.NewClient(&redis.Options{
+			Addr:           "localhost:6379",
+			Password:       "",
+			DB:             0,
+			PoolSize:       16,
+			MinIdleConns:   8,
+			MaxActiveConns: 16,
+		})
+
+		err := client.Ping(ctx).Err()
+		if err != nil {
+			return
+		}
+		rdInstance = client
 	})
 
-	err := client.Ping(ctx).Err()
-	if err != nil {
-		return nil, fmt.Errorf("redis connect err: %v", err)
-	}
-
 	return &RedisService{
-		client: client,
+		client: rdInstance,
 		ctx:    ctx,
 	}, nil
 }
