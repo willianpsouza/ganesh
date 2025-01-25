@@ -81,13 +81,12 @@ func runningServer() {
 	wg := sync.WaitGroup{}
 	loginQueue := make(chan localStructs.DataLogin)
 	startWorkTasks(&wg, loginQueue)
-	total := 100
+	total := 1
 	for {
 		if total == 0 {
 			break
 		}
 		GoUsers(loginQueue)
-		time.Sleep(30 * time.Second)
 		total -= 1
 	}
 

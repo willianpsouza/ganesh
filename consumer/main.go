@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	localPostgres "ganesh.provengo.io/lib/postgres"
 	localRedis "ganesh.provengo.io/lib/redis"
 	localStructs "ganesh.provengo.io/local_structs"
 	localEncrypt "ganesh.provengo.io/tools/encrypt"
@@ -26,6 +27,11 @@ const (
 type Channels struct {
 	passwordQueue chan localStructs.DataLogin
 	redisQueue    chan localStructs.DataLogin
+	postgresQueue chan localStructs.DataLogin
+}
+
+type PGDataInsertUserPasword struct {
+	data localStructs.DataLogin
 }
 
 func UserPassword(c *localStructs.DataLogin) string {
@@ -51,6 +57,7 @@ func NatsWorker(idGg int, reqChannel Channels, wg *sync.WaitGroup) {
 	if err != nil {
 		log.Fatal("error connecting to NATS")
 	}
+
 	defer func() {
 		nc.Close()
 		wg.Done()
@@ -66,7 +73,9 @@ func NatsWorker(idGg int, reqChannel Channels, wg *sync.WaitGroup) {
 				log.Printf("error unmarshalling data from NATS: %v", err)
 			}
 			reqChannel.redisQueue <- req
+			reqChannel.postgresQueue <- req
 			reqChannel.passwordQueue <- req
+
 		})
 	case "workers":
 		//WORKER PROCESS PATTERN
@@ -78,6 +87,7 @@ func NatsWorker(idGg int, reqChannel Channels, wg *sync.WaitGroup) {
 				log.Printf("error unmarshalling data from NATS: %v", err)
 			}
 			reqChannel.redisQueue <- req
+			reqChannel.postgresQueue <- req
 			reqChannel.passwordQueue <- req
 		})
 
@@ -97,16 +107,52 @@ func RedisWorker(idGg int, reqChannel chan localStructs.DataLogin, wg *sync.Wait
 	if _err != nil {
 		log.Fatalf("Error connecting to Redis %v", _err)
 	}
+	//_randoTime := time.Duration(rand.Intn(123)) * time.Second
+	_randoTime := localSetup.RedisDefaultTTL
+
 	for req := range reqChannel {
 		_data := localRedis.RedisData{
 			Key:   req.UUID,
 			Value: fmt.Sprintf("Username %s Password %s", req.Username, req.Password),
-			TTL:   120 * time.Second,
+			TTL:   _randoTime,
 		}
-		_err := conn.Set(ctx, _data)
-		if _err != nil {
-			log.Fatalf("Error setting data in Redis %v", _err)
-		}
+
+		go func() {
+			_err := conn.Set(ctx, _data)
+			if _err != nil {
+				log.Fatalf("Error setting data in Redis %v", _err)
+			}
+		}()
+	}
+}
+
+func PostgresWorker(idGg int, reqChannel chan localStructs.DataLogin, wg *sync.WaitGroup, ctx context.Context) {
+	fmt.Printf("Starting Postgres Worker: %d\n", idGg)
+
+	conn, err := localPostgres.PostgresConnection(ctx, localSetup.PostgresURI)
+
+	if err != nil {
+		log.Fatalf("Error connecting to Postgres %v", err)
+	}
+
+	err = conn.Ping(ctx)
+	if err != nil {
+		log.Fatalf("Error pinging Postgres %v", err)
+	}
+
+	defer func() {
+		wg.Done()
+		conn.Close()
+	}()
+
+	for req := range reqChannel {
+		wg.Add(1)
+		go func() {
+			err := conn.InsertUserPassword(ctx, req)
+			if err != nil {
+				log.Fatalf("Error inserting user password %v", err)
+			}
+		}()
 	}
 }
 
@@ -122,10 +168,15 @@ func startWorkTasks(wg *sync.WaitGroup, reqChannel Channels, ctx context.Context
 		//Passwords workers
 		wg.Add(1)
 		go PasswordWorkers(i, reqChannel.passwordQueue, wg)
+	}
 
+	for i := 0; i < totalTasks+2; i++ {
 		//Redis Workers
 		wg.Add(1)
 		go RedisWorker(i, reqChannel.redisQueue, wg, ctx)
+
+		wg.Add(1)
+		go PostgresWorker(i, reqChannel.postgresQueue, wg, ctx)
 
 	}
 }
@@ -135,6 +186,7 @@ func runningServer(ctx context.Context, wg *sync.WaitGroup) {
 	var channels Channels
 	channels.passwordQueue = make(chan localStructs.DataLogin, totalTasks)
 	channels.redisQueue = make(chan localStructs.DataLogin, totalTasks)
+	channels.postgresQueue = make(chan localStructs.DataLogin, totalTasks)
 
 	startWorkTasks(wg, channels, ctx)
 
