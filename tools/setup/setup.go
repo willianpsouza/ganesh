@@ -8,7 +8,7 @@ const (
 	TotalTasks             int           = 2
 	QueueGroup             string        = "login_workers"
 	ConsumerType           string        = "workers"
-	UsersGenerate          int           = 100000
+	UsersGenerate          int           = 5000
 	RedisDefaultTTL        time.Duration = 120 * time.Minute
 	PostgresURI            string        = "postgres://postgres:meni4na6@localhost:5432/postgres?sslmode=disable"
 	PostgresDB             string        = "postgres"

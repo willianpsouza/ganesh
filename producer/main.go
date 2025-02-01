@@ -81,7 +81,7 @@ func runningServer() {
 	wg := sync.WaitGroup{}
 	loginQueue := make(chan localStructs.DataLogin)
 	startWorkTasks(&wg, loginQueue)
-	total := 1
+	total := 4
 	for {
 		if total == 0 {
 			break
@@ -89,7 +89,6 @@ func runningServer() {
 		GoUsers(loginQueue)
 		total -= 1
 	}
-
 }
 
 func main() {
