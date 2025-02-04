@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	localStructs "ganesh.provengo.io/local_structs"
-	localSetup "ganesh.provengo.io/tools/setup"
+	localSetup "ganesh.provengo.io/internal/setup"
+	localStructs "ganesh.provengo.io/internal/structs"
 	fkrV4 "github.com/go-faker/faker/v4"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"

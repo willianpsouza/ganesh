@@ -5,4 +5,4 @@ export GIN_MODE=release
 export GOMAXPROCS=2
 
 
-bin/./main
+main
