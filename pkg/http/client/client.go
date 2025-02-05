@@ -83,7 +83,9 @@ func LogStatus(responseChannel chan StatusQuery, wg *sync.WaitGroup, startSignal
 	startSignal.Wait()
 	fmt.Printf("Starting log consumer")
 
-	defaultPrint := "Worker id %d -- Query %d ConnTime %v TotalTime %v TotalBytes %v"
+	defaultPrint := "Worker id %d -- Query %d ConnTime %v TotalTime %v TotalBytes %v \r"
+
+	fmt.Printf("\n")
 
 	func() {
 		for metric := range responseChannel {
@@ -99,7 +101,6 @@ func StartClient(url string, totalQueries int, TotalWorkers int) {
 
 	startSignal.Add(1)
 
-	wg.Add(1)
 	go LogStatus(responseChan, &wg, &startSignal)
 
 	for i := 0; i < TotalWorkers; i++ {
@@ -110,8 +111,7 @@ func StartClient(url string, totalQueries int, TotalWorkers int) {
 
 	startSignal.Done()
 
-	go func() {
-		wg.Wait()
-		close(responseChan)
-	}()
+	wg.Wait()
+	close(responseChan)
+
 }
