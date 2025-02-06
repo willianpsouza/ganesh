@@ -1,0 +1,7 @@
+Total Access: 11127304 Access Rate: 92727 Elapsed Time: 2m0.022066686s 
+Status Code 200: 11127304 
+Status Code 300: 0 
+Status Code 400: 0 
+Status Code 500: 0 
+Total Connection Duration  Average: 0.001051 P95: 0.002840 p99: 0.004236
+Total Access Duration: Average: 0.001054 p95: 0.002844 p99: 0.004241
