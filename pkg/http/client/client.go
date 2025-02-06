@@ -187,7 +187,7 @@ func AccessMetrics(data []StatusQuery) {
 	return
 }
 
-func StartClient(url string, TotalWorkers int, totalTime int) {
+func StartClient(url string, TotalWorkers int, totalTime time.Duration) {
 	wg := sync.WaitGroup{}
 	startSignal := sync.WaitGroup{}
 	responseChannel := make(chan StatusQuery)
@@ -199,7 +199,7 @@ func StartClient(url string, TotalWorkers int, totalTime int) {
 
 	for i := 0; i < TotalWorkers; i++ {
 		wg.Add(1)
-		go httpWorker(i, url, 10*time.Second, responseChannel, &wg, &startSignal)
+		go httpWorker(i, url, totalTime, responseChannel, &wg, &startSignal)
 	}
 
 	startSignal.Done()
