@@ -5,6 +5,7 @@ import (
 	"ganesh.provengo.io/api"
 	"ganesh.provengo.io/pkg/ipaddr"
 	"github.com/gin-gonic/gin"
+	"log"
 )
 
 func validatePort(port int) error {
@@ -28,6 +29,10 @@ func aliveAndKicking(port int, isSSL bool) {
 }
 
 func Run(port int, isSSL bool) {
+	if validatePort(port) != nil {
+		log.Fatalf("invalid port %d", port)
+		return
+	}
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 	r.GET("/ping", api.Ping())

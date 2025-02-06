@@ -1,6 +1,7 @@
 package http_client
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"github.com/google/uuid"
@@ -25,7 +26,7 @@ type StatusQuery struct {
 	Singnature     string
 }
 
-func httpWorker(goId int, url string, executionTime time.Duration, responseChannel chan StatusQuery, wg *sync.WaitGroup, startSignal *sync.WaitGroup) {
+func httpWorker(goId int, method string, url string, data interface{}, executionTime time.Duration, responseChannel chan StatusQuery, wg *sync.WaitGroup, startSignal *sync.WaitGroup) {
 	defer wg.Done()
 
 	startSignal.Wait()
@@ -53,11 +54,20 @@ func httpWorker(goId int, url string, executionTime time.Duration, responseChann
 	}
 
 	executionStart := time.Now()
+	resp, err := client.Head(url)
 	for {
 		startTime := time.Now()
 		bodyLength := 0
 
-		resp, err := client.Get(url)
+		switch method {
+		case "GET":
+			resp, err = client.Get(url)
+		case "POST":
+			resp, err = client.Post(url, "application/json", bytes.NewBufferString(data.(string)))
+		default:
+			return
+		}
+
 		connectionTime := time.Since(startTime)
 		if err != nil {
 			log.Println("Error:", err)
@@ -199,7 +209,7 @@ func StartClient(url string, TotalWorkers int, totalTime time.Duration) {
 
 	for i := 0; i < TotalWorkers; i++ {
 		wg.Add(1)
-		go httpWorker(i, url, totalTime, responseChannel, &wg, &startSignal)
+		go httpWorker(i, "GET", url, nil, totalTime, responseChannel, &wg, &startSignal)
 	}
 
 	startSignal.Done()
