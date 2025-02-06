@@ -6,6 +6,7 @@ import (
 
 func main() {
 	url := "http://192.168.86.45:8080/keep-alive/lalalalla"
-	GaneshHttpClient.StartClient(url, 10000, 100)
+
+	GaneshHttpClient.StartClient(url, 100)
 
 }
