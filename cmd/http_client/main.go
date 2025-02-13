@@ -6,8 +6,8 @@ import (
 )
 
 func main() {
-	url := "http://192.168.86.45:8080/keep-alive/lalalalla"
+	url := "http://192.168.86.45:8080/send-user"
 
-	GaneshHttpClient.StartClient(url, 100, 3600*time.Second)
+	GaneshHttpClient.StartClient(url, 100, 30*time.Second)
 
 }

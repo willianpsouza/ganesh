@@ -3,7 +3,9 @@ package http_client
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	localStructs "ganesh.provengo.io/internal/structs"
 	"github.com/google/uuid"
 	"io/ioutil"
 	"log"
@@ -23,10 +25,16 @@ type StatusQuery struct {
 	TotalTime      time.Duration
 	TimesStamp     time.Time
 	TotalBytes     int
-	Singnature     string
+	Signature      string
 }
 
-func httpWorker(goId int, method string, url string, data interface{}, executionTime time.Duration, responseChannel chan StatusQuery, wg *sync.WaitGroup, startSignal *sync.WaitGroup) {
+type PostData struct {
+	Signature   string
+	Destination string
+	Data        []byte
+}
+
+func httpWorker(goId int, method string, url string, data PostData, executionTime time.Duration, responseChannel chan StatusQuery, wg *sync.WaitGroup, startSignal *sync.WaitGroup) {
 	defer wg.Done()
 
 	startSignal.Wait()
@@ -63,7 +71,7 @@ func httpWorker(goId int, method string, url string, data interface{}, execution
 		case "GET":
 			resp, err = client.Get(url)
 		case "POST":
-			resp, err = client.Post(url, "application/json", bytes.NewBufferString(data.(string)))
+			resp, err = client.Post(url, "application/json", bytes.NewBufferString(string(data.Data)))
 		default:
 			return
 		}
@@ -88,7 +96,7 @@ func httpWorker(goId int, method string, url string, data interface{}, execution
 			ConnectionTime: connectionTime,
 			TotalTime:      totalTime,
 			TotalBytes:     bodyLength,
-			Singnature:     uuid.New().String(),
+			Signature:      uuid.New().String(),
 			TimesStamp:     time.Now(),
 		}
 		if time.Since(executionStart) >= executionTime {
@@ -206,10 +214,23 @@ func StartClient(url string, TotalWorkers int, totalTime time.Duration) {
 	startSignal.Add(1)
 
 	go LogStatus(responseChannel, returnChannel, &wg, &startSignal)
+	userBytes, _ := json.Marshal(localStructs.DataLogin{
+		Username:  "teste",
+		Password:  "teste",
+		UUID:      "teste",
+		Timestamp: 0,
+		Sequence:  1,
+	})
 
 	for i := 0; i < TotalWorkers; i++ {
 		wg.Add(1)
-		go httpWorker(i, "GET", url, nil, totalTime, responseChannel, &wg, &startSignal)
+		_localData := PostData{
+			Signature:   uuid.New().String(),
+			Destination: "user",
+			Data:        userBytes,
+		}
+		go httpWorker(i, "POST", url, _localData, totalTime, responseChannel, &wg, &startSignal)
+
 	}
 
 	startSignal.Done()
